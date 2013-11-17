@@ -9,7 +9,7 @@ class Simulator {
 
   protected[simulations] var agenda: Agenda = List()
   protected var currentTime = 0
-
+  
   protected def afterDelay(delay: Int)(action: => Unit) {
     val item = WorkItem(currentTime + delay, () => action)
     def insert(ag: Agenda): Agenda =

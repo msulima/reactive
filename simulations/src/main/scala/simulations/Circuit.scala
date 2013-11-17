@@ -7,7 +7,7 @@ class Wire {
   private var actions: List[Simulator#Action] = List()
 
   def getSignal: Boolean = sigVal
-  
+
   def setSignal(s: Boolean) {
     if (s != sigVal) {
       sigVal = s
@@ -29,10 +29,11 @@ abstract class CircuitSimulator extends Simulator {
 
   def probe(name: String, wire: Wire) {
     wire addAction {
-      () => afterDelay(0) {
-        println(
-          "  " + currentTime + ": " + name + " -> " +  wire.getSignal)
-      }
+      () =>
+        afterDelay(0) {
+          println(
+            "  " + currentTime + ": " + name + " -> " + wire.getSignal)
+        }
     }
   }
 
@@ -59,17 +60,42 @@ abstract class CircuitSimulator extends Simulator {
   //
 
   def orGate(a1: Wire, a2: Wire, output: Wire) {
-    ???
+    def orAction() {
+      val a1Sig = a1.getSignal
+      val a2Sig = a2.getSignal
+      afterDelay(OrGateDelay) { output.setSignal(a1Sig | a2Sig) }
+    }
+    a1 addAction orAction
+    a2 addAction orAction
   }
-  
+
   def orGate2(a1: Wire, a2: Wire, output: Wire) {
-    ???
+    val c, d, e = new Wire
+    inverter(a1, c)
+    inverter(a2, d)
+    andGate(c, d, e)
+    inverter(e, output)
   }
 
   def demux(in: Wire, c: List[Wire], out: List[Wire]) {
-    ???
+    c match {
+      case head :: Nil => 
+      	simpleDemux(in, c.head, out(0), out(1))
+      case head :: tail => 
+		val bottom, top = new Wire
+		simpleDemux(in, c.head, bottom, top)
+		
+	    demux(bottom, c.tail, out.slice(0, out.size / 2))
+	    demux(top, c.tail, out.slice(out.size / 2, out.size))
+    }
   }
-
+  
+  def simpleDemux(in: Wire, c: Wire, out1: Wire, out2: Wire) {
+    val i = new Wire
+	inverter(c, i)
+    andGate(in, i, out1)
+    andGate(in, c, out2)
+  }
 }
 
 object Circuit extends CircuitSimulator {
