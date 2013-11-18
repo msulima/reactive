@@ -5,7 +5,7 @@ import math.random
 class EpidemySimulator extends Simulator {
 
   def randomBelow(i: Int) = (random * i).toInt
-  def randomPick[T](i: List[T]) = i(randomBelow(i.size))
+  def randomPick[T](i: Seq[T]) = i(randomBelow(i.size))
 
   protected[simulations] object SimConfig {
     val population: Int = 300
@@ -16,9 +16,11 @@ class EpidemySimulator extends Simulator {
     val sickInterval = 6
     val deathInterval = 8
     val deathChance = 25
-    val immuneInterval = 20
+    val immuneInterval = 2
     val healthInterval = 2
     val infectionRate = 40
+
+    val airTrafficChance = 0
 
     // to complete: additional parameters of simulation
   }
@@ -40,7 +42,13 @@ class EpidemySimulator extends Simulator {
     for {
       x <- List(-1, 1)
       y <- List(-1, 1)
-    } yield ((person.row + x + 8) % 8, (person.col + y + 8) % 8)
+    } yield ((person.row + x + roomRows) % roomRows, (person.col + y + roomColumns) % roomColumns)
+
+  def allRooms =
+    for {
+      x <- 0 until roomRows
+      y <- 0 until roomColumns
+    } yield (x, y)
 
   def hasAnyVisiblyInfected(room: (Int, Int)) =
     personsInRoom(room).filter(isVisiblyInfected).size > 0
@@ -59,24 +67,40 @@ class EpidemySimulator extends Simulator {
     var col: Int = randomBelow(roomColumns)
 
     def move() {
-      afterDelay(randomBelow(4) + 1) {
+      afterDelay(randomBelow(5) + 1) {
         if (!dead) {
-          val possibilities = neighbourRoom(this).filterNot(hasAnyVisiblyInfected)
-          if (possibilities.size > 0) {
-            val (new_row, new_col) = randomPick(possibilities)
-            val gets_infected = personsInRoom((new_row, new_col)).exists(_.infected) && (randomBelow(100) < infectionRate)
-            val willGetInfected = (!immune && gets_infected)
-
-            afterDelay(0) {
-              walkIntoRoom(new_row, new_col)
-              if (!infected && willGetInfected) {
-                becomeInfected()
-              }
-              move()
-            }
+          if (randomBelow(100) < airTrafficChance) {
+            moveByPlane()
+          } else {
+            moveOnFeet()
           }
         }
       }
+    }
+
+    def moveByPlane() {
+      val (new_row, new_col) = randomPick(allRooms)
+      moveTo(new_row, new_col)
+    }
+
+    def moveOnFeet() {
+      val possibilities = neighbourRoom(this).filterNot(hasAnyVisiblyInfected)
+      if (possibilities.size > 0) {
+        val (new_row, new_col) = randomPick(possibilities)
+        moveTo(new_row, new_col)
+      }
+    }
+
+    def moveTo(new_row: Int, new_col: Int) = {
+      val gets_infected = personsInRoom((new_row, new_col)).exists(_.infected) && (randomBelow(100) < infectionRate)
+      val willGetInfected = (!immune && gets_infected)
+
+      row = new_row
+      col = new_col
+      if (!infected && willGetInfected) {
+        becomeInfected()
+      }
+      move()
     }
 
     def becomeInfected() {
@@ -103,6 +127,7 @@ class EpidemySimulator extends Simulator {
       afterDelay(healthInterval) {
         becomeHealthy()
       }
+      sick = false
       immune = true
     }
 
@@ -111,11 +136,6 @@ class EpidemySimulator extends Simulator {
       sick = false
       immune = false
       dead = false
-    }
-
-    private def walkIntoRoom(new_row: Int, new_col: Int) = {
-      row = new_row
-      col = new_col
     }
   }
 }

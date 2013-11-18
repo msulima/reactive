@@ -75,11 +75,11 @@ class CircuitSuite extends CircuitSimulator with FunSuite {
 
     in.setSignal(true);
     run
-    checkOutputs(true, false, 2)
+    checkOutputs(false, true, 2)
 
     c.setSignal(true);
     run
-    checkOutputs(false, true, 3)
+    checkOutputs(true, false, 3)
 
     in.setSignal(false);
     run
@@ -116,10 +116,10 @@ class CircuitSuite extends CircuitSimulator with FunSuite {
       (0, 0, 1) -> (0, 0, 0, 0),
       (0, 1, 0) -> (0, 0, 0, 0),
       (0, 1, 1) -> (0, 0, 0, 0),
-      (1, 0, 0) -> (1, 0, 0, 0),
-      (1, 0, 1) -> (0, 1, 0, 0),
-      (1, 1, 0) -> (0, 0, 1, 0),
-      (1, 1, 1) -> (0, 0, 0, 1))
+      (1, 0, 0) -> (0, 0, 0, 1),
+      (1, 0, 1) -> (0, 0, 1, 0),
+      (1, 1, 0) -> (0, 1, 0, 0),
+      (1, 1, 1) -> (1, 0, 0, 0))
 
     checks.foreach(_ match {
       case (inputs, outputs) => {
