@@ -1,21 +1,20 @@
 package nodescala
 
 
-
 import scala.language.postfixOps
-import scala.util.{Try, Success, Failure}
 import scala.collection._
 import scala.concurrent._
 import ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.async.Async.{async, await}
+import scala.async.Async.async
 import org.scalatest._
 import NodeScala._
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
+import org.scalatest.matchers.{Matchers, ShouldMatchers}
 
 @RunWith(classOf[JUnitRunner])
-class NodeScalaSuite extends FunSuite {
+class NodeScalaSuite extends FunSuite with ShouldMatchers  with Matchers {
 
   test("A Future should always be created") {
     val always = Future.always(517)
@@ -31,6 +30,60 @@ class NodeScalaSuite extends FunSuite {
       assert(false)
     } catch {
       case t: TimeoutException => // ok!
+    }
+  }
+
+  test("all should keep futures in order") {
+    val p1 = Promise[Int]()
+    val p2 = Promise[Int]()
+
+    val all = Future.all[Int](List(p1.future, p2.future))
+
+    p2.success(2)
+    blocking {
+      Thread.sleep(100)
+    }
+    p1.success(1)
+
+    val result: List[Int] = Await.result(all, 1 second)
+    result should equal(List(1, 2))
+  }
+
+  test("any should return first promise") {
+    val p1 = Promise[Int]()
+    val p2 = Promise[Int]()
+
+    val any = Future.any[Int](List(p1.future, p2.future))
+
+    p2.success(2)
+    p1.failure(new NotImplementedError())
+
+    val result: Int = Await.result(any, 1 second)
+    result should equal(2)
+  }
+
+  test("delay should not block caller thread") {
+    val blocks = Promise[Unit]()
+    val delay = Future.delay(100 millis)
+    delay onSuccess {
+      case _ => blocks.success()
+    }
+    blocks.isCompleted should equal(false)
+
+    Await.ready(blocks.future, 1 second)
+    blocks.isCompleted should equal(true)
+  }
+
+  test("now return value from completed future") {
+    Future.successful(5).now should equal(5)
+  }
+
+  test("now throws exception if future non-completed") {
+    try {
+      Promise[Unit]().future.now
+      assert(false)
+    } catch {
+      case t: NoSuchElementException => // ok!
     }
   }
 
@@ -53,10 +106,12 @@ class NodeScalaSuite extends FunSuite {
 
   class DummyExchange(val request: Request) extends Exchange {
     @volatile var response = ""
-    val loaded = Promise[String]()
+              val loaded   = Promise[String]()
+
     def write(s: String) {
       response += s
     }
+
     def close() {
       loaded.success(response)
     }
